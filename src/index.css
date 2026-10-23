@@ -1,0 +1,408 @@
+@import url('https://fonts.googleapis.com/css2?family=Kanit:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+@variant light (&:where(.light, .light *));
+
+@theme {
+  --font-sans: "Kanit", sans-serif;
+  --font-display: "Kanit", sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+html, body, #root {
+  background-color: #0C0C0C;
+  color: #D7E2EA;
+  font-family: 'Kanit', sans-serif;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+.hero-heading {
+  color: #FFFFFF;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.6), 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+.contact-btn-grad {
+  background: linear-gradient(123deg, #18011F 7%, #B600A8 37%, #7621B0 72%, #BE4C00 100%);
+  box-shadow: 0px 4px 4px rgba(181, 1, 167, 0.25), inset 4px 4px 12px #7721B1;
+  outline: 2px solid white;
+  outline-offset: -3px;
+}
+
+.project-card {
+  backdrop-filter: blur(12px);
+  background: rgba(215, 226, 234, 0.03);
+  border: 1px solid rgba(215, 226, 234, 0.1);
+}
+
+.item-border {
+  border-bottom: 1px solid rgba(215, 226, 234, 0.1);
+}
+
+/* Hide scrollbars for a clean premium look, while allowing scrolling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0C0C0C;
+}
+::-webkit-scrollbar-thumb {
+  background: #252525;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3c3c3c;
+}
+
+/* --- LIGHT THEME RULES --- */
+
+/* Root and Base Transitions */
+.light, .light body, .light #root {
+  background-color: #F8F9FA !important;
+  color: #1A1D20 !important;
+  transition: background-color 0.7s ease, color 0.7s ease;
+}
+
+/* General text color fallback */
+.light .text-\[\#D7E2EA\],
+.light [class*="text-[#D7E2EA]"]:not([class*="/"]) {
+  color: #1E293B !important; /* slate-800 */
+}
+
+/* Navbar overrides */
+.light nav button {
+  color: #1A1D20 !important;
+  transition: color 0.3s ease;
+}
+.light nav button:hover {
+  color: #B600A8 !important;
+}
+.light nav button.text-white {
+  color: #000000 !important;
+}
+
+/* Hero Section overrides */
+.light .hero-heading {
+  color: #0F172A !important;
+  text-shadow: 0 4px 15px rgba(0, 0, 0, 0.05) !important;
+}
+.light .hero-heading span {
+  color: #B600A8 !important;
+}
+
+/* Hire me & other default dark outlines */
+.light .contact-btn-grad {
+  outline: 2px solid #0F172A !important;
+}
+
+/* About Section text overrides */
+.light #about p, .light #about span {
+  color: #1E293B !important;
+}
+
+/* Decorative images drop shadows and visible opacity */
+.light img[alt*="Decorative"] {
+  opacity: 0.95 !important;
+  filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.08)) !important;
+}
+
+/* Services list styles - translucent theme-responsive glassmorphism */
+#services {
+  background-color: rgba(12, 12, 12, 0.35) !important;
+  backdrop-filter: blur(24px) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  color: #D7E2EA !important;
+  transition: all 0.7s ease;
+}
+#services h2, #services h3, #services h4 {
+  color: #FFFFFF !important;
+}
+#services p {
+  color: rgba(215, 226, 234, 0.75) !important;
+}
+#services span:not(.tech-tag) {
+  color: rgba(215, 226, 234, 0.6) !important;
+}
+#services .tech-tag {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  transition: all 0.3s ease;
+}
+#services .border-b {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+#services .bg-\[\#0C0C0C\]\/5 {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+}
+#services .bg-\[\#0C0C0C\]\/5:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+#services .p-3.bg-\[\#0C0C0C\] {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: #FFFFFF !important;
+}
+
+/* Light Mode Overrides for Services */
+.light #services {
+  background-color: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: blur(24px) !important;
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+  color: #1A1D20 !important;
+}
+.light #services h2, 
+.light #services h3, 
+.light #services h4 {
+  color: #0F172A !important;
+}
+.light #services p {
+  color: rgba(15, 23, 42, 0.75) !important;
+}
+.light #services span:not(.tech-tag) {
+  color: rgba(15, 23, 42, 0.6) !important;
+}
+.light #services .border-b {
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+.light #services .bg-\[\#0C0C0C\]\/5 {
+  background-color: rgba(15, 23, 42, 0.04) !important;
+  border-color: rgba(15, 23, 42, 0.06) !important;
+}
+.light #services .bg-\[\#0C0C0C\]\/5:hover {
+  background-color: rgba(15, 23, 42, 0.08) !important;
+}
+.light #services .p-3.bg-\[\#0C0C0C\] {
+  background-color: #0F172A !important;
+  color: #FFFFFF !important;
+}
+.light #services .tech-tag {
+  background-color: rgba(15, 23, 42, 0.08) !important;
+  color: #0F172A !important;
+  border: 1px solid rgba(15, 23, 42, 0.1) !important;
+}
+
+/* Projects Stacked Cards Styles */
+.light .project-card {
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.05) !important;
+}
+.light .project-card .text-white {
+  color: #0F172A !important;
+}
+.light .project-card .text-\[\#D7E2EA\]\/60 {
+  color: #475569 !important; /* slate-600 */
+}
+.light .project-card span.opacity-40 {
+  color: #0F172A !important;
+  opacity: 0.15 !important;
+}
+.light .project-card .bg-\[\#161616\] {
+  background-color: #E2E8F0 !important; /* light slate container for images */
+}
+.light .project-card .border-b {
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+/* Contact Section & Form elements */
+.light #contact {
+  background-color: #F8F9FA !important;
+  border-top: 1px solid rgba(15, 23, 42, 0.05);
+}
+.light #contact .hero-heading {
+  color: #0F172A !important;
+}
+.light #contact p, .light #contact span {
+  color: #334155 !important;
+}
+.light #contact .text-\[\#D7E2EA\]\/40,
+.light #contact [class*="text-[#D7E2EA]/40"] {
+  color: #64748B !important;
+}
+.light #contact .text-\[\#D7E2EA\]\/70,
+.light #contact [class*="text-[#D7E2EA]/70"] {
+  color: #334155 !important;
+}
+
+/* Glass Form Card */
+.light #contact .bg-white\/\[0\.02\],
+.light #contact [class*="bg-white/[0.02]"] {
+  background-color: #FFFFFF !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 35px 80px rgba(15, 23, 42, 0.05) !important;
+}
+.light #contact .bg-white\/\[0\.02\] .text-white,
+.light #contact [class*="bg-white/[0.02]"] .text-white,
+.light #contact [class*="bg-white/[0.02]"] h3 {
+  color: #0F172A !important;
+}
+.light #contact .text-\[\#D7E2EA\]\/50,
+.light #contact [class*="text-[#D7E2EA]/50"] {
+  color: #64748B !important;
+}
+
+/* Inputs & Form boxes */
+.light #contact input, .light #contact textarea {
+  background-color: #F1F5F9 !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #0F172A !important;
+}
+.light #contact input::placeholder, .light #contact textarea::placeholder {
+  color: #94A3B8 !important;
+}
+.light #contact input:focus, .light #contact textarea:focus {
+  border-color: #B600A8 !important;
+  background-color: #FFFFFF !important;
+}
+.light #contact .text-white\/30,
+.light #contact [class*="text-white/30"] {
+  color: #64748B !important;
+}
+.light #contact button[type="submit"] {
+  background-color: #0F172A !important;
+  color: #FFFFFF !important;
+  outline: none !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2) !important;
+}
+.light #contact button[type="submit"]:hover {
+  background-color: #1E293B !important;
+}
+
+/* WhatsApp and direct links in Light mode */
+.light #contact .bg-\[\#25D366\]\/10,
+.light #contact [class*="bg-[#25D366]/10"] {
+  background-color: rgba(37, 211, 102, 0.08) !important;
+}
+.light #contact [class*="bg-[#25D366]"] span {
+  color: #25D366 !important;
+}
+.light #contact .bg-white\/5:not(.text-\[\#FF007F\]):not(.text-\[\#1877F2\]),
+.light #contact [class*="bg-white/5"]:not([class*="text-[#FF007F]"]):not([class*="text-[#1877F2]"]) {
+  background-color: #FFFFFF !important;
+  border-color: rgba(15, 23, 42, 0.1) !important;
+  color: #0F172A !important;
+}
+.light #contact .bg-white\/5:not(.text-\[\#FF007F\]):not(.text-\[\#1877F2\]) .text-white,
+.light #contact [class*="bg-white/5"]:not([class*="text-[#FF007F]"]):not([class*="text-[#1877F2]"]) .text-white,
+.light #contact [class*="bg-white/5"]:not([class*="text-[#FF007F]"]):not([class*="text-[#1877F2]"]) svg {
+  color: #0F172A !important;
+}
+.light #contact .bg-white\/5 .text-\[\#D7E2EA\]\/70,
+.light #contact [class*="bg-white/5"] [class*="text-[#D7E2EA]/70"] {
+  color: #475569 !important;
+}
+.light #contact .border-white\/5,
+.light #contact [class*="border-white/5"] {
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+/* Instagram and Facebook specific overrides in Light Mode */
+.light #contact [class*="bg-white/5"][class*="text-[#FF007F]"] {
+  background-color: #FFFFFF !important;
+  border-color: rgba(15, 23, 42, 0.1) !important;
+  color: #FF007F !important;
+}
+.light #contact [class*="bg-white/5"][class*="text-[#FF007F]"] svg {
+  color: #FF007F !important;
+}
+
+.light #contact [class*="bg-white/5"][class*="text-[#1877F2]"] {
+  background-color: #FFFFFF !important;
+  border-color: rgba(15, 23, 42, 0.1) !important;
+  color: #1877F2 !important;
+}
+.light #contact [class*="bg-white/5"][class*="text-[#1877F2]"] svg {
+  color: #1877F2 !important;
+}
+
+/* Scrollbars in Light theme */
+.light::-webkit-scrollbar-track {
+  background: #F8F9FA !important;
+}
+.light::-webkit-scrollbar-thumb {
+  background: #E2E8F0 !important;
+}
+.light::-webkit-scrollbar-thumb:hover {
+  background: #CBD5E1 !important;
+}
+
+/* Live Project Button Override for Light Mode */
+.light .project-card a, .light #projects a {
+  border-color: #0F172A !important;
+  color: #0F172A !important;
+  transition: all 0.3s ease;
+}
+.light .project-card a:hover, .light #projects a:hover {
+  background-color: rgba(15, 23, 42, 0.08) !important;
+  color: #0F172A !important;
+}
+
+/* Marquee containers override for Light Mode */
+.light .bg-\[\#1A1A1A\],
+.light [class*="bg-[#1A1A1A]"] {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+/* Ensure projects and contact sections are transparent so the full-screen 3D video shines through beautifully */
+#projects, .light #projects {
+  background-color: transparent !important;
+}
+#contact, .light #contact {
+  background-color: transparent !important;
+}
+
+/* Catch-all text opacity fixes for tailwind light-mode rendering */
+.light .text-\[\#D7E2EA\]\/70,
+.light [class*="text-[#D7E2EA]/70"] {
+  color: rgba(30, 41, 59, 0.8) !important;
+}
+.light .text-\[\#D7E2EA\]\/60,
+.light [class*="text-[#D7E2EA]/60"] {
+  color: rgba(30, 41, 59, 0.7) !important;
+}
+.light .text-\[\#D7E2EA\]\/50,
+.light [class*="text-[#D7E2EA]/50"] {
+  color: rgba(30, 41, 59, 0.6) !important;
+}
+.light .text-\[\#D7E2EA\]\/40,
+.light [class*="text-[#D7E2EA]/40"] {
+  color: rgba(30, 41, 59, 0.5) !important;
+}
+.light .text-\[\#D7E2EA\]\/30,
+.light [class*="text-[#D7E2EA]/30"] {
+  color: rgba(30, 41, 59, 0.4) !important;
+}
+.light .text-\[\#D7E2EA\]\/15,
+.light [class*="text-[#D7E2EA]/15"] {
+  color: rgba(30, 41, 59, 0.2) !important;
+}
+
+/* Precise image containment to prevent absolute or parallax translated children from escaping container borders */
+.clip-container-24 {
+  clip-path: inset(0 round 24px);
+  -webkit-clip-path: inset(0 round 24px);
+}
+@media (min-width: 768px) {
+  .clip-container-24 {
+    clip-path: inset(0 round 28px);
+    -webkit-clip-path: inset(0 round 28px);
+  }
+}
+
+.clip-container-16 {
+  clip-path: inset(0 round 16px);
+  -webkit-clip-path: inset(0 round 16px);
+}
+

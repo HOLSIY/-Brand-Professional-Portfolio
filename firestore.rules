@@ -1,0 +1,79 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper: Validates a Contact Submission document structure and string sizes
+    function isValidSubmission(data) {
+      return data.keys().hasAll(['name', 'email', 'message', 'createdAt'])
+        && data.keys().size() <= 8
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.email is string && data.email.size() > 0 && data.email.size() <= 200
+        && data.message is string && data.message.size() > 0 && data.message.size() <= 5000
+        && data.createdAt is string && data.createdAt.size() > 0 && data.createdAt.size() <= 100
+        && (!data.keys().hasAny(['replyText']) || (data.replyText is string && data.replyText.size() <= 5000))
+        && (!data.keys().hasAny(['replyImage']) || (data.replyImage == null || (data.replyImage is string && data.replyImage.size() <= 5000)))
+        && (!data.keys().hasAny(['repliedAt']) || (data.repliedAt is string && data.repliedAt.size() <= 100))
+        && (!data.keys().hasAny(['replied']) || (data.replied is bool));
+    }
+
+    // Helper: Validates page visit records for analytics (append-only)
+    function isValidVisit(data) {
+      return data.keys().hasAll(['visitorId', 'path', 'timestamp'])
+        && data.keys().size() <= 6
+        && data.visitorId is string && data.visitorId.size() > 0 && data.visitorId.size() <= 200
+        && data.path is string && data.path.size() > 0 && data.path.size() <= 1000
+        && data.timestamp is string && data.timestamp.size() > 0 && data.timestamp.size() <= 100
+        && (!data.keys().hasAny(['userAgent']) || (data.userAgent is string && data.userAgent.size() <= 2000))
+        && (!data.keys().hasAny(['language']) || (data.language is string && data.language.size() <= 100))
+        && (!data.keys().hasAny(['referrer']) || (data.referrer is string && data.referrer.size() <= 2000));
+    }
+
+    // Helper: Validates admin configuration/settings schema and parameters
+    function isValidSetting(data) {
+      return data.keys().hasAll(['password'])
+        && data.keys().size() <= 2
+        && data.password is string && data.password.size() >= 6 && data.password.size() <= 200
+        && (!data.keys().hasAny(['updatedAt']) || (data.updatedAt is string && data.updatedAt.size() <= 100));
+    }
+
+    // Submissions match block
+    match /submissions/{submissionId} {
+      allow read, delete: if true;
+      allow create: if isValidSubmission(request.resource.data);
+      allow update: if isValidSubmission(request.resource.data)
+        && (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyText', 'replyImage', 'repliedAt', 'replied']) 
+          || request.resource.data.diff(resource.data).affectedKeys().size() == 0
+        );
+    }
+
+    // Visits match block (Append-only for analytics logging)
+    match /visits/{visitId} {
+      allow read: if true;
+      allow create: if isValidVisit(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    // Settings match block
+    match /settings/{settingId} {
+      allow read: if true;
+      allow create, update: if isValidSetting(request.resource.data);
+      allow delete: if false;
+    }
+
+    // Projects match block
+    match /projects/{projectId} {
+      allow read, write: if true;
+    }
+
+    // Certificates match block
+    match /certificates/{certificateId} {
+      allow read, write: if true;
+    }
+  }
+}

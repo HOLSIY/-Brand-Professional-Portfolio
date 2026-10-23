@@ -1,0 +1,117 @@
+{
+  "entities": {
+    "Submission": {
+      "title": "Submission",
+      "description": "Contact form submission received from the portfolio website",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the submission"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the sender"
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the sender"
+        },
+        "message": {
+          "type": "string",
+          "description": "Message content"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp when the submission was created"
+        }
+      },
+      "required": ["name", "email", "message", "createdAt"]
+    },
+    "Visit": {
+      "title": "Visit",
+      "description": "Information about a client visit to the website for real-time analytics",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the visit record"
+        },
+        "visitorId": {
+          "type": "string",
+          "description": "Anonymized persistent visitor session identifier"
+        },
+        "path": {
+          "type": "string",
+          "description": "The page path visited by the user"
+        },
+        "userAgent": {
+          "type": "string",
+          "description": "Browser user agent of the visitor"
+        },
+        "language": {
+          "type": "string",
+          "description": "Preferred language of the visitor"
+        },
+        "referrer": {
+          "type": "string",
+          "description": "Referrer URL of the visitor"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "ISO timestamp when the page was loaded"
+        }
+      },
+      "required": ["visitorId", "path", "timestamp"]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "Dynamic portfolio project details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "num": { "type": "string" },
+        "category": { "type": "string" },
+        "title": { "type": "string" },
+        "col1_1": { "type": "string" },
+        "col1_2": { "type": "string" },
+        "col2": { "type": "string" },
+        "order": { "type": "number" }
+      },
+      "required": ["num", "category", "title", "col1_1", "col1_2", "col2"]
+    },
+    "Certificate": {
+      "title": "Certificate",
+      "description": "Professional certificate details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "issuer": { "type": "string" },
+        "issueDate": { "type": "string" },
+        "credentialUrl": { "type": "string" },
+        "image": { "type": "string" },
+        "order": { "type": "number" }
+      },
+      "required": ["title", "issuer", "issueDate"]
+    }
+  },
+  "firestore": {
+    "/submissions/{submissionId}": {
+      "schema": { "$ref": "#/entities/Submission" },
+      "description": "Collection storing contact form submissions"
+    },
+    "/visits/{visitId}": {
+      "schema": { "$ref": "#/entities/Visit" },
+      "description": "Collection of recorded page visits/views for administrator analytics"
+    },
+    "/projects/{projectId}": {
+      "schema": { "$ref": "#/entities/Project" },
+      "description": "Collection of dynamic projects"
+    },
+    "/certificates/{certificateId}": {
+      "schema": { "$ref": "#/entities/Certificate" },
+      "description": "Collection of certificates"
+    }
+  }
+}
