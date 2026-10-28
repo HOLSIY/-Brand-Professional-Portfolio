@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
-import { Sliders } from "lucide-react";
+import { Sliders, Github } from "lucide-react";
 import FadeIn from "./FadeIn";
 import LiveProjectButton from "./LiveProjectButton";
 import { useAdminAuth } from "../utils/useAdminAuth";
@@ -29,16 +29,20 @@ export interface ProjectData {
   col1_1: string;
   col1_2: string;
   col2: string;
+  liveUrl?: string;
+  githubUrl?: string;
 }
 
 export const DEFAULT_PROJECTS: ProjectData[] = [
   {
     num: "01",
     category: "Security / Desktop & Web Utility",
-    title: "File Encryption Application",
+    title: "Village Cafe",
     col1_1: p1_col1_1,
     col1_2: p1_col1_2,
     col2: p1_col2,
+    liveUrl: "https://village-restaurant-delta.vercel.app/",
+    githubUrl: "https://github.com/HOLSIY/Village-Restaurant.git",
   },
   {
     num: "02",
@@ -694,7 +698,29 @@ function ProjectCard({ project, index }: ProjectCardProps) {
               )}
             </div>
           )}
-          <LiveProjectButton />
+          {index === 0 ? (
+            <div className="flex items-center gap-2 sm:gap-3">
+              <a
+                href={project.liveUrl || "https://village-restaurant-delta.vercel.app/"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center rounded-full border-2 border-[#D7E2EA] text-[#D7E2EA] font-medium uppercase tracking-widest px-4 py-2 sm:px-6 sm:py-2.5 text-xs sm:text-sm hover:bg-[#D7E2EA]/10 transition-colors duration-300"
+              >
+                Live Project
+              </a>
+              <a
+                href={project.githubUrl || "https://github.com/HOLSIY/Village-Restaurant.git"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-full border-2 border-[#D7E2EA] text-[#D7E2EA] font-medium uppercase tracking-widest px-4 py-2 sm:px-6 sm:py-2.5 text-xs sm:text-sm hover:bg-[#D7E2EA]/10 transition-colors duration-300"
+              >
+                <Github className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <span>GitHub</span>
+              </a>
+            </div>
+          ) : (
+            <LiveProjectButton />
+          )}
         </div>
       </div>
 
