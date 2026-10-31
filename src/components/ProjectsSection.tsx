@@ -1,22 +1,21 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
-import { Sliders, Github } from "lucide-react";
+import { Github } from "lucide-react";
 import FadeIn from "./FadeIn";
 import LiveProjectButton from "./LiveProjectButton";
-import { useAdminAuth } from "../utils/useAdminAuth";
 
-// Import project images (clean original assets)
-import p1_col1_1 from "../assets/images/regenerated_image_1783167869447.jpg";
-import p1_col1_2 from "../assets/images/regenerated_image_1783167890479.jpg";
-import p1_col2 from "../assets/images/regenerated_image_1783167880960.jpg";
+// Import project images (ultra-optimized WebP assets for instant loading)
+import p1_col1_1 from "../assets/images/p1_col1_1.webp";
+import p1_col1_2 from "../assets/images/p1_col1_2.webp";
+import p1_col2 from "../assets/images/p1_col2.webp";
 
-import p2_col1_1 from "../assets/images/regenerated_image_1783167896522.jpg";
-import p2_col1_2 from "../assets/images/regenerated_image_1783167919972.jpg";
-import p2_col2 from "../assets/images/regenerated_image_1783167902052.jpg";
+import p2_col1_1 from "../assets/images/p2_col1_1.webp";
+import p2_col1_2 from "../assets/images/p2_col1_2.webp";
+import p2_col2 from "../assets/images/p2_col2.webp";
 
-import p3_col1_1 from "../assets/images/solaris_ui_3d_1783190461716.jpg";
-import p3_col1_2 from "../assets/images/solaris_mobile_ui_1783190475866.jpg";
-import p3_col2 from "../assets/images/solaris_3d_space_1783190492326.jpg";
+import p3_col1_1 from "../assets/images/p3_col1_1.webp";
+import p3_col1_2 from "../assets/images/p3_col1_2.webp";
+import p3_col2 from "../assets/images/p3_col2.webp";
 
 // Global cache tracking URLs that have loaded in this session to prevent re-downloads or flicker
 import { loadedImageUrls } from "./LazyImage";
@@ -26,6 +25,7 @@ export interface ProjectData {
   num: string;
   category: string;
   title: string;
+  description?: string;
   col1_1: string;
   col1_2: string;
   col2: string;
@@ -36,8 +36,9 @@ export interface ProjectData {
 export const DEFAULT_PROJECTS: ProjectData[] = [
   {
     num: "01",
-    category: "Security / Desktop & Web Utility",
+    category: "RESTAURANT / ONLINE ORDERING",
     title: "Village Cafe",
+    description: "A modern restaurant website for menus and online orders.",
     col1_1: p1_col1_1,
     col1_2: p1_col1_2,
     col2: p1_col2,
@@ -46,19 +47,23 @@ export const DEFAULT_PROJECTS: ProjectData[] = [
   },
   {
     num: "02",
-    category: "Communication / Real-time Collaboration",
-    title: "Chat System Application",
+    category: "SOCIAL MEDIA / COMMUNITY CONNECTION",
+    title: "Got U — Social Media Platform",
+    description: "A social platform for sharing, connecting, and engaging.",
     col1_1: p2_col1_1,
     col1_2: p2_col1_2,
     col2: p2_col2,
+    githubUrl: "https://github.com/HOLSIY/got-u",
   },
   {
     num: "03",
-    category: "Client / Mobile App UI & 3D Interactive Space",
-    title: "Solaris Digital",
+    category: "PUBLIC RECRUITMENT / TRANSPARENCY",
+    title: "EthioMerit — Public Recruitment & Anti-Corruption Platform",
+    description: "Promoting fair hiring and transparent recruitment.",
     col1_1: p3_col1_1,
     col1_2: p3_col1_2,
     col2: p3_col2,
+    githubUrl: "https://github.com/HOLSIY/EthioMerit---Public-Recruitment-Anti-Corruption-Platform",
   },
 ];
 
@@ -178,15 +183,36 @@ export default function ProjectsSection() {
   const [projects, setProjects] = useState<ProjectData[]>(DEFAULT_PROJECTS);
 
   useEffect(() => {
-    // Load projects dynamically from Firestore API with fallback
+    // Load projects dynamically from Firestore API with persistent image overrides
     fetch("/api/projects")
       .then((res) => {
         if (res.ok) return res.json();
         throw new Error();
       })
       .then((data) => {
-        if (data && data.projects && data.projects.length > 0) {
-          setProjects(data.projects);
+        if (data) {
+          const imagesMap = data.images || {};
+          if (data.projects && data.projects.length > 0) {
+            setProjects(data.projects.map((dp: ProjectData) => {
+              const def = DEFAULT_PROJECTS.find(d => d.num === dp.num);
+              return {
+                ...dp,
+                description: dp.description || def?.description,
+                col1_1: imagesMap[`${dp.num}_col1_1`] || dp.col1_1,
+                col1_2: imagesMap[`${dp.num}_col1_2`] || dp.col1_2,
+                col2: imagesMap[`${dp.num}_col2`] || dp.col2,
+              };
+            }));
+          } else if (Object.keys(imagesMap).length > 0) {
+            setProjects((prev) =>
+              prev.map((p) => ({
+                ...p,
+                col1_1: imagesMap[`${p.num}_col1_1`] || p.col1_1,
+                col1_2: imagesMap[`${p.num}_col1_2`] || p.col1_2,
+                col2: imagesMap[`${p.num}_col2`] || p.col2,
+              }))
+            );
+          }
         }
       })
       .catch((err) => {
@@ -509,6 +535,7 @@ function ProjectImage({
 
 function ProjectCard({ project, index }: ProjectCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
+  const [showComingSoon, setShowComingSoon] = useState(false);
   
   // Motion value for normalized mouse X coordinate inside the card (0 = left boundary, 1 = right boundary)
   const mouseX = useMotionValue(0.5); 
@@ -531,19 +558,9 @@ function ProjectCard({ project, index }: ProjectCardProps) {
     mouseX.set(0.5); // smoothly return to center on cursor exit
   };
 
-  // Admin authentication check: Only authenticated admins can see or use layout controls
-  const { isAdmin, adminToken } = useAdminAuth();
   const isSolaris = true;
-  
-  const [isEditing, setIsEditing] = useState(false);
+  const isEditing = false;
   const storageKey = `project_layouts_v2_${project.num}`;
-
-  // Automatically exit edit mode if admin logs out
-  useEffect(() => {
-    if (!isAdmin && isEditing) {
-      setIsEditing(false);
-    }
-  }, [isAdmin, isEditing]);
 
   const [layouts, setLayouts] = useState(() => {
     try {
@@ -567,71 +584,6 @@ function ProjectCard({ project, index }: ProjectCardProps) {
     };
   });
 
-  const handleSave = async () => {
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(layouts));
-      // Enforce backend sync with admin credentials
-      if (adminToken) {
-        await fetch("/api/projects/layout", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-admin-password": adminToken,
-          },
-          body: JSON.stringify({
-            projectNum: project.num,
-            layouts,
-          }),
-        });
-      }
-    } catch (e) {
-      console.error("Error saving layouts", e);
-    }
-    setIsEditing(false);
-  };
-
-  const handleCancel = () => {
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        setLayouts(JSON.parse(saved));
-      } else {
-        if (project.num === "03") {
-          setLayouts({
-            img1: { x: 0, y: -20, scale: 1.15 },
-            img2: { x: 0, y: -20, scale: 1.15 },
-            img3: { x: 0, y: -40, scale: 1.1 }
-          });
-        } else {
-          setLayouts({
-            img1: { x: 0, y: 0, scale: 1.0 },
-            img2: { x: 0, y: 0, scale: 1.0 },
-            img3: { x: 0, y: 0, scale: 1.0 }
-          });
-        }
-      }
-    } catch (e) {
-      console.error("Error reverting layouts", e);
-    }
-    setIsEditing(false);
-  };
-
-  const handleReset = () => {
-    if (project.num === "03") {
-      setLayouts({
-        img1: { x: 0, y: -20, scale: 1.15 },
-        img2: { x: 0, y: -20, scale: 1.15 },
-        img3: { x: 0, y: -40, scale: 1.1 }
-      });
-    } else {
-      setLayouts({
-        img1: { x: 0, y: 0, scale: 1.0 },
-        img2: { x: 0, y: 0, scale: 1.0 },
-        img3: { x: 0, y: 0, scale: 1.0 }
-      });
-    }
-  };
-
   return (
     <motion.div
       ref={cardRef}
@@ -645,59 +597,29 @@ function ProjectCard({ project, index }: ProjectCardProps) {
       }}
     >
       {/* Top Row */}
-      <div className="flex flex-wrap justify-between items-center gap-3 border-b border-[#D7E2EA]/10 pb-4">
-        <div className="flex items-center gap-3 sm:gap-4">
+      <div className="flex flex-wrap justify-between items-start gap-4 border-b border-[#D7E2EA]/10 pb-4">
+        <div className="flex items-start gap-3 sm:gap-4 max-w-xl">
           {/* Project Number */}
-          <span className="font-black text-3xl sm:text-4xl md:text-5xl text-white select-none opacity-45">
+          <span className="font-black text-3xl sm:text-4xl md:text-5xl text-white select-none opacity-45 shrink-0 leading-none pt-0.5">
             {project.num}
           </span>
-          <div className="flex flex-col">
-            <span className="text-[#D7E2EA]/60 uppercase tracking-widest text-[9px] sm:text-[10px]">
+          <div className="flex flex-col min-w-0">
+            <span className="text-[#D7E2EA]/60 uppercase tracking-widest text-[9px] sm:text-[10px] truncate max-w-full">
               {project.category}
             </span>
-            <h3 className="text-white uppercase font-bold text-base sm:text-lg md:text-xl tracking-wide line-clamp-1">
+            <h3 className="text-white uppercase font-bold text-base sm:text-lg md:text-xl tracking-wide line-clamp-1 truncate">
               {project.title}
             </h3>
+            {project.description && (
+              <p className="text-[#D7E2EA]/65 text-[10px] sm:text-[11px] md:text-xs font-light mt-0.5 sm:mt-1 leading-snug truncate max-w-full">
+                {project.description}
+              </p>
+            )}
           </div>
         </div>
 
         {/* Action Controls and Live Project Button */}
         <div className="flex items-center gap-3">
-          {isAdmin && (
-            <div className="flex items-center gap-1.5 sm:gap-2 mr-1 sm:mr-2">
-              {isEditing ? (
-                <>
-                  <button
-                    onClick={handleSave}
-                    className="px-2.5 sm:px-3 py-1 text-[10px] sm:text-xs font-bold rounded-full bg-green-600 hover:bg-green-500 text-white transition-all duration-200 cursor-pointer shadow-[0_2px_8px_rgba(22,163,74,0.3)]"
-                  >
-                    SAVE
-                  </button>
-                  <button
-                    onClick={handleCancel}
-                    className="px-2.5 sm:px-3 py-1 text-[10px] sm:text-xs font-bold rounded-full bg-zinc-700 hover:bg-zinc-600 text-white transition-all duration-200 cursor-pointer"
-                  >
-                    CANCEL
-                  </button>
-                  <button
-                    onClick={handleReset}
-                    className="px-2.5 sm:px-3 py-1 text-[10px] sm:text-xs font-bold rounded-full bg-amber-600/30 hover:bg-amber-600/50 text-amber-200 transition-all duration-200 border border-amber-500/20 cursor-pointer"
-                  >
-                    RESET
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 text-[10px] sm:text-xs font-bold rounded-full bg-white/10 hover:bg-white/20 text-white transition-all duration-200 border border-white/10 cursor-pointer"
-                  title="Edit Layout (Admin Only)"
-                >
-                  <Sliders className="w-3 h-3 text-[#B600A8]" />
-                  <span>EDIT LAYOUT</span>
-                </button>
-              )}
-            </div>
-          )}
           {index === 0 ? (
             <div className="flex items-center gap-2 sm:gap-3">
               <a
@@ -713,6 +635,58 @@ function ProjectCard({ project, index }: ProjectCardProps) {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-full border-2 border-[#D7E2EA] text-[#D7E2EA] font-medium uppercase tracking-widest px-4 py-2 sm:px-6 sm:py-2.5 text-xs sm:text-sm hover:bg-[#D7E2EA]/10 transition-colors duration-300"
+              >
+                <Github className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <span>GitHub</span>
+              </a>
+            </div>
+          ) : index === 1 ? (
+            <div className="flex items-start gap-2 sm:gap-3">
+              <div className="flex flex-col items-start sm:items-end">
+                <button
+                  type="button"
+                  onClick={() => setShowComingSoon((prev) => !prev)}
+                  className="inline-flex items-center justify-center rounded-full border-2 border-[#D7E2EA] text-[#D7E2EA] font-medium uppercase tracking-widest px-4 py-2 sm:px-6 sm:py-2.5 text-xs sm:text-sm hover:bg-[#D7E2EA]/10 transition-colors duration-300 cursor-pointer"
+                >
+                  Live Project
+                </button>
+                {showComingSoon && (
+                  <p className="mt-1.5 text-[9px] sm:text-[10px] md:text-[11px] text-[#D7E2EA]/75 tracking-wide font-light whitespace-nowrap overflow-hidden text-ellipsis max-w-[210px] sm:max-w-none text-left sm:text-right">
+                    Coming soon — live preview in progress.
+                  </p>
+                )}
+              </div>
+              <a
+                href={project.githubUrl || "https://github.com/HOLSIY/got-u"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-full border-2 border-[#D7E2EA] text-[#D7E2EA] font-medium uppercase tracking-widest px-4 py-2 sm:px-6 sm:py-2.5 text-xs sm:text-sm hover:bg-[#D7E2EA]/10 transition-colors duration-300 shrink-0"
+              >
+                <Github className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <span>GitHub</span>
+              </a>
+            </div>
+          ) : index === 2 ? (
+            <div className="flex items-start gap-2 sm:gap-3">
+              <div className="flex flex-col items-start sm:items-end">
+                <button
+                  type="button"
+                  onClick={() => setShowComingSoon((prev) => !prev)}
+                  className="inline-flex items-center justify-center rounded-full border-2 border-[#D7E2EA] text-[#D7E2EA] font-medium uppercase tracking-widest px-4 py-2 sm:px-6 sm:py-2.5 text-xs sm:text-sm hover:bg-[#D7E2EA]/10 transition-colors duration-300 cursor-pointer"
+                >
+                  Live Project
+                </button>
+                {showComingSoon && (
+                  <p className="mt-1.5 text-[9px] sm:text-[10px] md:text-[11px] text-[#D7E2EA]/75 tracking-wide font-light whitespace-nowrap overflow-hidden text-ellipsis max-w-[210px] sm:max-w-none text-left sm:text-right">
+                    Coming soon — platform under development.
+                  </p>
+                )}
+              </div>
+              <a
+                href={project.githubUrl || "https://github.com/HOLSIY/EthioMerit---Public-Recruitment-Anti-Corruption-Platform"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-full border-2 border-[#D7E2EA] text-[#D7E2EA] font-medium uppercase tracking-widest px-4 py-2 sm:px-6 sm:py-2.5 text-xs sm:text-sm hover:bg-[#D7E2EA]/10 transition-colors duration-300 shrink-0"
               >
                 <Github className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                 <span>GitHub</span>

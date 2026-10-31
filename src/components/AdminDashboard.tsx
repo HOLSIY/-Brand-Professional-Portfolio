@@ -5,10 +5,108 @@ import {
   HelpCircle, Check, Send, Reply, X, MailOpen, Paperclip, 
   Image as ImageIcon, Copy, FileImage, UploadCloud, CornerDownRight,
   TrendingUp, Clock, Globe, Activity, Eye, Users, Percent, ChevronRight,
-  Award, Plus, Edit2, FolderGit2
+  Award, Plus, Edit2, FolderGit2, AlertCircle, Sliders
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import AnalyticsPanel from "./AnalyticsPanel";
+
+import p1_col1_1 from "../assets/images/p1_col1_1.webp";
+import p1_col1_2 from "../assets/images/p1_col1_2.webp";
+import p1_col2 from "../assets/images/p1_col2.webp";
+import p2_col1_1 from "../assets/images/p2_col1_1.webp";
+import p2_col1_2 from "../assets/images/p2_col1_2.webp";
+import p2_col2 from "../assets/images/p2_col2.webp";
+import p3_col1_1 from "../assets/images/p3_col1_1.webp";
+import p3_col1_2 from "../assets/images/p3_col1_2.webp";
+import p3_col2 from "../assets/images/p3_col2.webp";
+
+interface ProjectSlotConfig {
+  key: "col1_1" | "col1_2" | "col2";
+  label: string;
+  defaultImg: string;
+  aspectDesc: string;
+}
+
+interface PortfolioProjectBase {
+  num: string;
+  title: string;
+  category: string;
+  slots: ProjectSlotConfig[];
+}
+
+const PORTFOLIO_PROJECTS_BASE: PortfolioProjectBase[] = [
+  {
+    num: "01",
+    title: "Village Cafe",
+    category: "RESTAURANT / ONLINE ORDERING",
+    slots: [
+      { key: "col1_1", label: "Desktop Detail 1", defaultImg: p1_col1_1, aspectDesc: "Wide / Card Top" },
+      { key: "col1_2", label: "Component Detail 2", defaultImg: p1_col1_2, aspectDesc: "Detail / Card Bottom" },
+      { key: "col2", label: "Hero Showcase View", defaultImg: p1_col2, aspectDesc: "Tall / Hero Display" },
+    ]
+  },
+  {
+    num: "02",
+    title: "Got U — Social Media Platform",
+    category: "SOCIAL MEDIA / COMMUNITY CONNECTION",
+    slots: [
+      { key: "col1_1", label: "Feed Detail 1", defaultImg: p2_col1_1, aspectDesc: "Wide / Card Top" },
+      { key: "col1_2", label: "Interface Detail 2", defaultImg: p2_col1_2, aspectDesc: "Detail / Card Bottom" },
+      { key: "col2", label: "Hero Platform View", defaultImg: p2_col2, aspectDesc: "Tall / Hero Display" },
+    ]
+  },
+  {
+    num: "03",
+    title: "EthioMerit — Public Recruitment & Anti-Corruption Platform",
+    category: "PUBLIC RECRUITMENT / TRANSPARENCY",
+    slots: [
+      { key: "col1_1", label: "Portal Detail 1", defaultImg: p3_col1_1, aspectDesc: "Wide / Card Top" },
+      { key: "col1_2", label: "Verification Detail 2", defaultImg: p3_col1_2, aspectDesc: "Detail / Card Bottom" },
+      { key: "col2", label: "Hero System View", defaultImg: p3_col2, aspectDesc: "Tall / Hero Display" },
+    ]
+  }
+];
+
+async function compressImageForUpload(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 1600;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(e.target?.result as string);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        let dataUrl = canvas.toDataURL("image/webp", 0.85);
+        if (!dataUrl.startsWith("data:image/webp")) {
+          dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        }
+        resolve(dataUrl);
+      };
+      img.onerror = () => reject(new Error("Failed to load selected image file."));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error("Failed to read file from disk."));
+    reader.readAsDataURL(file);
+  });
+}
 
 interface Submission {
   id: string;
@@ -130,6 +228,200 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
     }
   };
 
+  // Gallery Image State
+  const [customGalleryImages, setCustomGalleryImages] = useState<Record<string, string>>({});
+  const [isGalleryLoading, setIsGalleryLoading] = useState(false);
+  const [galleryUploadProgress, setGalleryUploadProgress] = useState<Record<string, number>>({});
+  const [galleryUploadStatus, setGalleryUploadStatus] = useState<Record<string, string>>({});
+  const [galleryUploadError, setGalleryUploadError] = useState<Record<string, string>>({});
+  const [galleryUploadSuccess, setGalleryUploadSuccess] = useState<Record<string, string>>({});
+
+  const fetchGalleryImages = async () => {
+    setIsGalleryLoading(true);
+    try {
+      const res = await fetch("/api/projects/images");
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.images) {
+          setCustomGalleryImages(data.images);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load gallery images:", e);
+    } finally {
+      setIsGalleryLoading(false);
+    }
+  };
+
+  // Layout Adjustment State (Exclusively managed within authenticated Admin Dashboard)
+  const [selectedLayoutProject, setSelectedLayoutProject] = useState<string>("01");
+  const [projectLayoutsState, setProjectLayoutsState] = useState<Record<string, any>>({
+    "01": { img1: { x: 0, y: 0, scale: 1.0 }, img2: { x: 0, y: 0, scale: 1.0 }, img3: { x: 0, y: 0, scale: 1.0 } },
+    "02": { img1: { x: 0, y: 0, scale: 1.0 }, img2: { x: 0, y: 0, scale: 1.0 }, img3: { x: 0, y: 0, scale: 1.0 } },
+    "03": { img1: { x: 0, y: -20, scale: 1.15 }, img2: { x: 0, y: -20, scale: 1.15 }, img3: { x: 0, y: -40, scale: 1.1 } }
+  });
+  const [isSavingLayout, setIsSavingLayout] = useState(false);
+  const [layoutSaveMsg, setLayoutSaveMsg] = useState("");
+  const [layoutSaveError, setLayoutSaveError] = useState("");
+
+  const fetchLayouts = async () => {
+    try {
+      const res = await fetch("/api/projects/layout");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.layouts && Object.keys(data.layouts).length > 0) {
+          setProjectLayoutsState(prev => ({ ...prev, ...data.layouts }));
+        }
+      }
+    } catch (e) {
+      console.warn("Could not load layouts:", e);
+    }
+  };
+
+  const handleUpdateSlotLayout = (slotKey: "img1" | "img2" | "img3", prop: "x" | "y" | "scale", val: number) => {
+    setProjectLayoutsState(prev => {
+      const proj = prev[selectedLayoutProject] || {
+        img1: { x: 0, y: 0, scale: 1.0 },
+        img2: { x: 0, y: 0, scale: 1.0 },
+        img3: { x: 0, y: 0, scale: 1.0 }
+      };
+      return {
+        ...prev,
+        [selectedLayoutProject]: {
+          ...proj,
+          [slotKey]: {
+            ...proj[slotKey],
+            [prop]: val
+          }
+        }
+      };
+    });
+  };
+
+  const handleSaveLayout = async () => {
+    if (!password) return;
+    setIsSavingLayout(true);
+    setLayoutSaveMsg("");
+    setLayoutSaveError("");
+    try {
+      const currentLayout = projectLayoutsState[selectedLayoutProject];
+      const res = await fetch("/api/projects/layout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-password": password
+        },
+        body: JSON.stringify({
+          projectNum: selectedLayoutProject,
+          layouts: currentLayout
+        })
+      });
+      if (res.ok) {
+        localStorage.setItem(`project_layouts_v2_${selectedLayoutProject}`, JSON.stringify(currentLayout));
+        setLayoutSaveMsg(`Layout adjustments for Project ${selectedLayoutProject} saved successfully!`);
+        setTimeout(() => setLayoutSaveMsg(""), 4000);
+      } else {
+        const d = await res.json().catch(() => ({}));
+        setLayoutSaveError(d.error || "Failed to save layout.");
+      }
+    } catch (err: any) {
+      setLayoutSaveError("Error saving layout: " + (err.message || err));
+    } finally {
+      setIsSavingLayout(false);
+    }
+  };
+
+  const handleResetLayout = async () => {
+    const defaultLayout = selectedLayoutProject === "03" ? {
+      img1: { x: 0, y: -20, scale: 1.15 },
+      img2: { x: 0, y: -20, scale: 1.15 },
+      img3: { x: 0, y: -40, scale: 1.1 }
+    } : {
+      img1: { x: 0, y: 0, scale: 1.0 },
+      img2: { x: 0, y: 0, scale: 1.0 },
+      img3: { x: 0, y: 0, scale: 1.0 }
+    };
+    setProjectLayoutsState(prev => ({ ...prev, [selectedLayoutProject]: defaultLayout }));
+    localStorage.setItem(`project_layouts_v2_${selectedLayoutProject}`, JSON.stringify(defaultLayout));
+    try {
+      await fetch("/api/projects/layout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-password": password
+        },
+        body: JSON.stringify({
+          projectNum: selectedLayoutProject,
+          layouts: defaultLayout
+        })
+      });
+      setLayoutSaveMsg(`Project ${selectedLayoutProject} layout reset to default presets!`);
+      setTimeout(() => setLayoutSaveMsg(""), 4000);
+    } catch (e) {
+      // non-fatal
+    }
+  };
+
+  const handleReplaceGalleryImage = async (
+    projectNum: string,
+    slot: "col1_1" | "col1_2" | "col2",
+    file: File
+  ) => {
+    const slotKey = `${projectNum}_${slot}`;
+    setGalleryUploadError((prev) => ({ ...prev, [slotKey]: "" }));
+    setGalleryUploadSuccess((prev) => ({ ...prev, [slotKey]: "" }));
+    setGalleryUploadProgress((prev) => ({ ...prev, [slotKey]: 15 }));
+    setGalleryUploadStatus((prev) => ({ ...prev, [slotKey]: "Optimizing image for fast delivery..." }));
+
+    try {
+      const compressedData = await compressImageForUpload(file);
+      setGalleryUploadProgress((prev) => ({ ...prev, [slotKey]: 60 }));
+      setGalleryUploadStatus((prev) => ({ ...prev, [slotKey]: "Saving permanently to Firestore database..." }));
+
+      const res = await fetch("/api/projects/replace-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-password": password,
+        },
+        body: JSON.stringify({
+          projectNum,
+          slot,
+          data: compressedData,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to save image to database.");
+      }
+
+      setGalleryUploadProgress((prev) => ({ ...prev, [slotKey]: 100 }));
+      setGalleryUploadStatus((prev) => ({ ...prev, [slotKey]: "" }));
+      setGalleryUploadSuccess((prev) => ({
+        ...prev,
+        [slotKey]: "Image saved permanently in database!",
+      }));
+      setCustomGalleryImages((prev) => ({
+        ...prev,
+        [slotKey]: compressedData,
+      }));
+
+      setTimeout(() => {
+        setGalleryUploadSuccess((prev) => ({ ...prev, [slotKey]: "" }));
+        setGalleryUploadProgress((prev) => ({ ...prev, [slotKey]: 0 }));
+      }, 5000);
+    } catch (err: any) {
+      console.error("Failed to replace gallery image:", err);
+      setGalleryUploadProgress((prev) => ({ ...prev, [slotKey]: 0 }));
+      setGalleryUploadStatus((prev) => ({ ...prev, [slotKey]: "" }));
+      setGalleryUploadError((prev) => ({
+        ...prev,
+        [slotKey]: err.message || "Failed to replace image. Previous image preserved.",
+      }));
+    }
+  };
+
   const handleSaveProject = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -182,33 +474,24 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
     reader.readAsDataURL(file);
   };
 
-  // Check initial setup status on mount (we do not auto-login to ensure privacy)
+  // Check initial setup status on mount (we strictly do not auto-login to ensure privacy)
   useEffect(() => {
     let active = true;
-    const checkSystemStatus = async (retries = 5, delay = 2000) => {
+    const checkSystemStatus = async () => {
       try {
         const res = await fetch("/api/dashboard/status");
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        const data = await res.json();
-        if (active) {
-          setIsSystemSetup(data.isSetup);
+        if (res.ok) {
+          const data = await res.json();
+          if (active) {
+            setIsSystemSetup(data.isSetup !== false);
+          }
+        } else if (active) {
+          setIsSystemSetup(true);
         }
       } catch (e) {
-        console.error("Failed to check system configuration status:", e);
-        if (retries > 0 && active) {
-          console.log(`Retrying system status check... attempts left: ${retries}`);
-          setTimeout(() => checkSystemStatus(retries - 1, delay), delay);
-        } else if (active) {
-          // Fallback to false if server is unreachable, letting user proceed to setup or offline state gracefully
-          setIsSystemSetup(false);
+        if (active) {
+          setIsSystemSetup(true);
         }
-      }
-      // Check if existing valid admin session exists
-      const existingToken = localStorage.getItem("admin_auth_token");
-      if (existingToken && active) {
-        verifyPassword(existingToken);
       }
     };
     checkSystemStatus();
@@ -265,24 +548,56 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
     }
   };
 
+  const fetchSubmissions = async (pwdToUse?: string) => {
+    const pwd = pwdToUse || password;
+    if (!pwd) return;
+    try {
+      const res = await fetch("/api/dashboard/submissions", {
+        headers: { "x-admin-password": pwd }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSubmissions(data.submissions || []);
+      }
+    } catch (e) {
+      console.error("Failed to load submissions:", e);
+    }
+  };
+
   const verifyPassword = async (pwdToVerify: string) => {
+    if (!pwdToVerify || !pwdToVerify.trim()) {
+      setError("Please enter your administrator password.");
+      return;
+    }
+
     setIsLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/dashboard/submissions?password=${encodeURIComponent(pwdToVerify)}`);
+      const trimmedPwd = pwdToVerify.trim();
+      const res = await fetch("/api/auth/verify-admin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-password": trimmedPwd,
+        },
+        body: JSON.stringify({ password: trimmedPwd }),
+      });
       const data = await res.json();
-      if (res.ok) {
-        setSubmissions(data.submissions || []);
+      if (res.ok && data.authenticated) {
         setIsAuthenticated(true);
-        setPassword(pwdToVerify);
-        localStorage.setItem("admin_auth_token", pwdToVerify);
+        setPassword(trimmedPwd);
+        localStorage.setItem("admin_auth_token", trimmedPwd);
         window.dispatchEvent(new Event("admin-auth-change"));
-        // Load visitor analytics and projects
-        fetchAnalytics(pwdToVerify);
+        // Load submissions, analytics, projects, and gallery images
+        await fetchSubmissions(trimmedPwd);
+        fetchAnalytics(trimmedPwd);
         fetchProjects();
+        fetchGalleryImages();
+        fetchLayouts();
       } else {
         localStorage.removeItem("admin_auth_token");
         window.dispatchEvent(new Event("admin-auth-change"));
+        setIsAuthenticated(false);
         setError(data.error || "Invalid administrator password.");
       }
     } catch (err) {
@@ -294,11 +609,11 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!password) {
-      setError("Please enter the dashboard password.");
+    if (!password || !password.trim()) {
+      setError("Please enter the administrator password.");
       return;
     }
-    verifyPassword(password);
+    verifyPassword(password.trim());
   };
 
   const handleRefresh = async () => {
@@ -834,6 +1149,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                 onClick={() => {
                   setActiveTab("projects");
                   fetchProjects();
+                  fetchGalleryImages();
                 }}
                 className={`pb-4 text-xs font-bold tracking-widest border-b-2 uppercase transition-all flex items-center gap-2 cursor-pointer ${
                   activeTab === "projects"
@@ -1213,12 +1529,298 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
             )}
 
             {activeTab === "projects" && (
-              <div className="flex-1 flex flex-col">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                  <div>
-                    <h3 className="text-xl font-bold text-white uppercase tracking-wider">Dynamic Projects</h3>
-                    <p className="text-xs text-[#D7E2EA]/50 mt-1">Manage and customize your showcase project items live.</p>
+              <div className="flex-1 flex flex-col gap-8">
+                {/* 1. PORTFOLIO GALLERY IMAGE MANAGEMENT */}
+                <div className="bg-white/[0.015] border border-white/10 rounded-[32px] p-6 sm:p-8">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-6 border-b border-white/5">
+                    <div>
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <h3 className="text-xl font-bold text-white uppercase tracking-wider">Portfolio Gallery Images</h3>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#B600A8]/20 text-[#B600A8] border border-[#B600A8]/30">
+                          Persistent Cloud Storage & Database
+                        </span>
+                      </div>
+                      <p className="text-xs text-[#D7E2EA]/60 mt-1.5 max-w-2xl leading-relaxed">
+                        Replace each project's gallery images. Once changed, images are permanently saved to the Firestore cloud database and remain active across page reloads, logouts, redeployments, and on all devices. Previous images remain untouched until replacement upload succeeds.
+                      </p>
+                    </div>
+                    <button
+                      onClick={fetchGalleryImages}
+                      disabled={isGalleryLoading}
+                      className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-xs font-semibold rounded-full border border-white/10 flex items-center gap-1.5 transition-all shrink-0 cursor-pointer"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isGalleryLoading ? "animate-spin text-[#B600A8]" : ""}`} />
+                      <span>Refresh Images</span>
+                    </button>
                   </div>
+
+                  {/* 3 Portfolio Projects Cards */}
+                  <div className="space-y-6">
+                    {PORTFOLIO_PROJECTS_BASE.map((project) => (
+                      <div key={project.num} className="bg-black/40 border border-white/5 rounded-2xl p-5 sm:p-6">
+                        <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl font-black text-[#B600A8]">{project.num}</span>
+                            <div>
+                              <span className="text-[10px] text-white/40 uppercase tracking-widest block">
+                                {project.category}
+                              </span>
+                              <h4 className="text-white font-bold text-base sm:text-lg">{project.title}</h4>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 3 Slots */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                          {project.slots.map((slot) => {
+                            const slotKey = `${project.num}_${slot.key}`;
+                            const currentSrc = customGalleryImages[slotKey] || slot.defaultImg;
+                            const isSlotUploading = !!galleryUploadProgress[slotKey] && galleryUploadProgress[slotKey] < 100;
+                            const progress = galleryUploadProgress[slotKey] || 0;
+                            const statusMsg = galleryUploadStatus[slotKey];
+                            const errorMsg = galleryUploadError[slotKey];
+                            const successMsg = galleryUploadSuccess[slotKey];
+
+                            return (
+                              <div key={slot.key} className="bg-white/[0.02] border border-white/5 rounded-xl p-3.5 flex flex-col justify-between">
+                                <div>
+                                  <div className="flex justify-between items-center mb-2">
+                                    <span className="text-xs font-semibold text-white/90">{slot.label}</span>
+                                    <span className="text-[9px] text-[#D7E2EA]/40 font-mono">{slot.aspectDesc}</span>
+                                  </div>
+
+                                  {/* Thumbnail Preview */}
+                                  <div className="w-full h-36 rounded-lg overflow-hidden relative bg-[#111113] border border-white/5 mb-3 group">
+                                    <img
+                                      src={currentSrc}
+                                      alt={`${project.title} - ${slot.label}`}
+                                      className="w-full h-full object-cover filter brightness-95 group-hover:scale-105 transition-all duration-300"
+                                    />
+                                    {customGalleryImages[slotKey] && (
+                                      <span className="absolute top-2 left-2 bg-green-500/80 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow">
+                                        Custom Database Image
+                                      </span>
+                                    )}
+                                    {isSlotUploading && (
+                                      <div className="absolute inset-0 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center p-3 text-center">
+                                        <RefreshCw className="w-5 h-5 animate-spin text-[#B600A8] mb-2" />
+                                        <span className="text-[11px] font-bold text-white">{statusMsg || "Uploading..."}</span>
+                                        <div className="w-full max-w-[120px] bg-white/10 h-1.5 rounded-full mt-2 overflow-hidden">
+                                          <div
+                                            className="bg-[#B600A8] h-full transition-all duration-200"
+                                            style={{ width: `${progress}%` }}
+                                          />
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Status / Error / Success feedback */}
+                                {errorMsg && (
+                                  <div className="mb-2 p-2 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-1.5 text-[10px] text-red-300">
+                                    <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-400" />
+                                    <span className="leading-tight">{errorMsg}</span>
+                                  </div>
+                                )}
+                                {successMsg && (
+                                  <div className="mb-2 p-2 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center gap-1.5 text-[10px] text-green-300">
+                                    <CheckCircle className="w-3.5 h-3.5 shrink-0 text-green-400" />
+                                    <span className="leading-tight">{successMsg}</span>
+                                  </div>
+                                )}
+
+                                {/* Upload Action Button */}
+                                <div>
+                                  <label className="w-full py-2 px-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer">
+                                    <UploadCloud className="w-3.5 h-3.5 text-[#B600A8]" />
+                                    <span>{customGalleryImages[slotKey] ? "Replace Image" : "Upload & Replace"}</span>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      disabled={isSlotUploading}
+                                      className="hidden"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          handleReplaceGalleryImage(project.num, slot.key, file);
+                                        }
+                                        e.target.value = "";
+                                      }}
+                                    />
+                                  </label>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2. PROJECT CARD LAYOUT & FRAMING CONTROLS (Admin-Only) */}
+                <div className="bg-white/[0.015] border border-white/10 rounded-[32px] p-6 sm:p-8">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Sliders className="w-5 h-5 text-[#B600A8]" />
+                        <h3 className="text-xl font-bold text-white uppercase tracking-wider">Project Image Layout & Framing</h3>
+                      </div>
+                      <p className="text-xs text-[#D7E2EA]/50 mt-1">
+                        Fine-tune image scale, horizontal alignment (X), and vertical alignment (Y) for the portfolio cards.
+                      </p>
+                    </div>
+
+                    {/* Project Selector Pills */}
+                    <div className="flex items-center gap-2 bg-white/5 p-1 rounded-xl border border-white/10">
+                      {[
+                        { num: "01", name: "01 Village Cafe" },
+                        { num: "02", name: "02 Got U" },
+                        { num: "03", name: "03 EthioMerit" }
+                      ].map(p => (
+                        <button
+                          key={p.num}
+                          type="button"
+                          onClick={() => setSelectedLayoutProject(p.num)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            selectedLayoutProject === p.num
+                              ? "bg-[#B600A8] text-white shadow-md"
+                              : "text-[#D7E2EA]/60 hover:text-white hover:bg-white/5"
+                          }`}
+                        >
+                          {p.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {layoutSaveMsg && (
+                    <div className="mb-6 p-3 bg-green-500/10 border border-green-500/20 rounded-xl flex items-center gap-2 text-xs text-green-300">
+                      <CheckCircle className="w-4 h-4 shrink-0 text-green-400" />
+                      <span>{layoutSaveMsg}</span>
+                    </div>
+                  )}
+
+                  {layoutSaveError && (
+                    <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-2 text-xs text-red-300">
+                      <ShieldAlert className="w-4 h-4 shrink-0 text-red-400" />
+                      <span>{layoutSaveError}</span>
+                    </div>
+                  )}
+
+                  {/* 3 Slot Sliders Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {[
+                      { key: "img1" as const, label: "01 / Top Detail View" },
+                      { key: "img2" as const, label: "02 / Bottom Detail View" },
+                      { key: "img3" as const, label: "03 / Tall Hero View" }
+                    ].map(slot => {
+                      const curLayout = (projectLayoutsState[selectedLayoutProject] || {})[slot.key] || { x: 0, y: 0, scale: 1.0 };
+                      return (
+                        <div key={slot.key} className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between mb-4 pb-2 border-b border-white/5">
+                              <span className="text-xs font-bold uppercase tracking-wider text-white">{slot.label}</span>
+                              <span className="text-[10px] text-[#B600A8] font-mono font-bold bg-[#B600A8]/10 px-2 py-0.5 rounded">
+                                {curLayout.scale.toFixed(2)}x
+                              </span>
+                            </div>
+
+                            {/* Scale Slider */}
+                            <div className="mb-4">
+                              <div className="flex justify-between text-[11px] text-[#D7E2EA]/70 mb-1">
+                                <span>Zoom Scale</span>
+                                <span className="font-mono text-white">{curLayout.scale.toFixed(2)}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0.8"
+                                max="2.0"
+                                step="0.05"
+                                value={curLayout.scale}
+                                onChange={(e) => handleUpdateSlotLayout(slot.key, "scale", parseFloat(e.target.value))}
+                                className="w-full accent-[#B600A8] cursor-pointer"
+                              />
+                            </div>
+
+                            {/* X Offset Slider */}
+                            <div className="mb-4">
+                              <div className="flex justify-between text-[11px] text-[#D7E2EA]/70 mb-1">
+                                <span>Horizontal Position (X)</span>
+                                <span className="font-mono text-white">{curLayout.x}px</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="-100"
+                                max="100"
+                                step="2"
+                                value={curLayout.x}
+                                onChange={(e) => handleUpdateSlotLayout(slot.key, "x", parseInt(e.target.value, 10))}
+                                className="w-full accent-[#B600A8] cursor-pointer"
+                              />
+                            </div>
+
+                            {/* Y Offset Slider */}
+                            <div className="mb-2">
+                              <div className="flex justify-between text-[11px] text-[#D7E2EA]/70 mb-1">
+                                <span>Vertical Position (Y)</span>
+                                <span className="font-mono text-white">{curLayout.y}px</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="-100"
+                                max="100"
+                                step="2"
+                                value={curLayout.y}
+                                onChange={(e) => handleUpdateSlotLayout(slot.key, "y", parseInt(e.target.value, 10))}
+                                className="w-full accent-[#B600A8] cursor-pointer"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Layout Action Buttons */}
+                  <div className="flex flex-wrap items-center justify-end gap-3 mt-6 pt-4 border-t border-white/5">
+                    <button
+                      type="button"
+                      onClick={handleResetLayout}
+                      disabled={isSavingLayout}
+                      className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-[#D7E2EA] text-xs font-bold rounded-xl transition-all cursor-pointer"
+                    >
+                      Reset to Defaults
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveLayout}
+                      disabled={isSavingLayout}
+                      className="px-5 py-2 bg-[#B600A8] hover:bg-[#B600A8]/85 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-[0_4px_16px_rgba(182,0,168,0.3)] disabled:opacity-50"
+                    >
+                      {isSavingLayout ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>Saving Layout...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Save Project {selectedLayoutProject} Layout</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. DYNAMIC PROJECTS */}
+                <div className="bg-white/[0.015] border border-white/10 rounded-[32px] p-6 sm:p-8">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <div>
+                      <h3 className="text-xl font-bold text-white uppercase tracking-wider">Dynamic Showcase Projects</h3>
+                      <p className="text-xs text-[#D7E2EA]/50 mt-1">Add additional custom showcase projects to the live layout.</p>
+                    </div>
                   <button
                     onClick={() => {
                       setEditingProject(null);
@@ -1310,6 +1912,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                     ))}
                   </div>
                 )}
+                </div>
               </div>
             )}
 

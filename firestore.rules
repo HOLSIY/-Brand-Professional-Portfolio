@@ -34,10 +34,16 @@ service cloud.firestore {
     }
 
     // Helper: Validates admin configuration/settings schema and parameters
-    function isValidSetting(data) {
+    function isValidAdminConfig(data) {
       return data.keys().hasAll(['password'])
         && data.keys().size() <= 2
         && data.password is string && data.password.size() >= 6 && data.password.size() <= 200
+        && (!data.keys().hasAny(['updatedAt']) || (data.updatedAt is string && data.updatedAt.size() <= 100));
+    }
+
+    // Helper: Validates project layouts configuration schema
+    function isValidLayoutSetting(data) {
+      return data.keys().hasAny(['layouts', 'updatedAt'])
         && (!data.keys().hasAny(['updatedAt']) || (data.updatedAt is string && data.updatedAt.size() <= 100));
     }
 
@@ -62,12 +68,19 @@ service cloud.firestore {
     // Settings match block
     match /settings/{settingId} {
       allow read: if true;
-      allow create, update: if isValidSetting(request.resource.data);
+      allow create, update: if (settingId == 'admin_config' && isValidAdminConfig(request.resource.data))
+        || (settingId == 'project_layouts' && isValidLayoutSetting(request.resource.data))
+        || (settingId != 'admin_config' && settingId != 'project_layouts');
       allow delete: if false;
     }
 
     // Projects match block
     match /projects/{projectId} {
+      allow read, write: if true;
+    }
+
+    // Project Images match block (Permanent gallery image replacements)
+    match /project_images/{imageId} {
       allow read, write: if true;
     }
 

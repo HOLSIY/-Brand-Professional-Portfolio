@@ -7,13 +7,13 @@ export interface AdminAuthState {
   logout: () => void;
 }
 
-// In-memory cache for fast synchronous checks
-let cachedToken: string | null = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null;
+// In-memory state (strictly unauthenticated by default)
+let cachedToken: string | null = null;
 let isVerifiedAdmin = false;
 
 export function useAdminAuth(): AdminAuthState {
-  const [isAdmin, setIsAdmin] = useState<boolean>(isVerifiedAdmin);
-  const [adminToken, setAdminToken] = useState<string | null>(cachedToken);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [adminToken, setAdminToken] = useState<string | null>(null);
 
   const checkAuth = useCallback(async (): Promise<boolean> => {
     if (typeof window === "undefined") return false;
@@ -47,7 +47,6 @@ export function useAdminAuth(): AdminAuthState {
         }
       }
     } catch (e) {
-      // Network failure; retain local token if already verified, else false
       console.warn("Auth verification error:", e);
     }
 
@@ -73,17 +72,8 @@ export function useAdminAuth(): AdminAuthState {
   }, []);
 
   useEffect(() => {
-    // Initial verification if token exists
-    const currentToken = localStorage.getItem("admin_auth_token");
-    if (currentToken) {
-      checkAuth();
-    } else {
-      setIsAdmin(false);
-      setAdminToken(null);
-    }
-
     const handleAuthChange = () => {
-      const token = localStorage.getItem("admin_auth_token");
+      const token = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null;
       if (token) {
         checkAuth();
       } else {

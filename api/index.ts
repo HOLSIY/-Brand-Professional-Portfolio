@@ -22,7 +22,8 @@ try {
 
 const app = express();
 
-app.use(express.json());
+app.use(express.json({ limit: "25mb" }));
+app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
 // Set aggressive HTTP cache headers on static assets and images so they are cached by the browser and not repeatedly downloaded
 app.use((req, res, next) => {
@@ -59,6 +60,7 @@ let memoryVisits: Visit[] = [];
 let memoryProjects: any[] = [];
 let memoryCertificates: any[] = [];
 let memoryLayouts: Record<string, any> = {};
+let memoryProjectImages: Record<string, string> = {};
 
 // Initialize Firebase from generated config or robust fallback
 let firebaseApp: any = null;
@@ -191,33 +193,64 @@ function getCleanErrorMessage(err: any): string {
   return err.message;
 }
 
-let randomSessionFallback: string | null = null;
+// In-memory cache for verified administrator credentials
+let cachedAdminPassword: string | null = null;
+
+// Pre-load the existing admin password into memory immediately on startup
+if (db) {
+  getDoc(doc(db, "settings", "admin_config"))
+    .then((snap) => {
+      if (snap.exists()) {
+        const d = snap.data();
+        if (d && typeof d.password === "string" && d.password.trim()) {
+          cachedAdminPassword = d.password.trim();
+          console.log("[Auth] Successfully verified and cached active admin credentials.");
+        }
+      }
+    })
+    .catch((err) => {
+      console.warn("[Auth] Background admin credentials pre-fetch warning:", err?.message || err);
+    });
+}
 
 async function getAdminPassword(): Promise<string> {
+  // If we already verified and cached the current admin password in memory, use it
+  if (cachedAdminPassword && cachedAdminPassword.trim() !== "") {
+    return cachedAdminPassword;
+  }
+
   if (db) {
     try {
       const configDoc = await getDoc(doc(db, "settings", "admin_config"));
       if (configDoc.exists()) {
         const data = configDoc.data();
-        if (data && data.password && data.password.trim() !== "") {
-          return data.password.trim();
+        if (data && typeof data.password === "string" && data.password.trim() !== "") {
+          cachedAdminPassword = data.password.trim();
+          return cachedAdminPassword;
         }
       }
     } catch (err) {
-      handleFirestoreError(err, OperationType.GET, "settings/admin_config");
+      console.error("[Auth] Error reading admin credentials from Firestore:", err);
+      if (cachedAdminPassword) {
+        return cachedAdminPassword;
+      }
     }
   }
 
   if (process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD.trim() !== "") {
-    return process.env.ADMIN_PASSWORD.trim();
+    cachedAdminPassword = process.env.ADMIN_PASSWORD.trim();
+    return cachedAdminPassword;
   }
 
-  // Fallback to "admin123" by default as requested by the user
-  return "admin123";
+  // Never return a hardcoded weak fallback password! Throw if credentials cannot be resolved.
+  throw new Error("Administrator credentials unavailable or unconfigured.");
 }
 
 // Check if a secure administrator password is configured
 async function isPasswordConfigured(): Promise<boolean> {
+  if (cachedAdminPassword && cachedAdminPassword.trim() !== "") {
+    return true;
+  }
   if (process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD.trim() !== "") {
     return true;
   }
@@ -226,16 +259,34 @@ async function isPasswordConfigured(): Promise<boolean> {
       const configDoc = await getDoc(doc(db, "settings", "admin_config"));
       if (configDoc.exists()) {
         const data = configDoc.data();
-        if (data && data.password && data.password.trim() !== "") {
+        if (data && typeof data.password === "string" && data.password.trim() !== "") {
+          cachedAdminPassword = data.password.trim();
           return true;
         }
       }
     } catch (err) {
-      handleFirestoreError(err, OperationType.GET, "settings/admin_config");
+      console.warn("[Auth] Could not read admin_config doc:", err);
     }
   }
-  // If no password is configured in either process.env or Firestore, return false to allow setup
   return false;
+}
+
+// Standardized, strict authentication middleware for all protected admin routes
+async function requireAdminAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
+  try {
+    const rawPass = req.headers["x-admin-password"] || req.query.password || req.body?.password;
+    if (!rawPass || typeof rawPass !== "string" || !rawPass.trim()) {
+      return res.status(401).json({ error: "Unauthorized access. Administrator password required." });
+    }
+    const activePassword = await getAdminPassword();
+    if (!activePassword || rawPass.trim() !== activePassword.trim()) {
+      return res.status(401).json({ error: "Unauthorized access. Invalid administrator password." });
+    }
+    next();
+  } catch (err: any) {
+    console.error("[Auth] Admin verification error:", err?.message || err);
+    return res.status(401).json({ error: "Unauthorized access. Administrator verification failed." });
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -330,14 +381,8 @@ app.post("/api/visit", async (req, res) => {
 });
 
 // GET /api/dashboard/analytics - Fetch aggregated analytics
-app.get("/api/dashboard/analytics", async (req, res) => {
+app.get("/api/dashboard/analytics", requireAdminAuth, async (req, res) => {
   try {
-    const password = req.headers["x-admin-password"] || req.query.password;
-    const activePassword = await getAdminPassword();
-
-    if (password !== activePassword) {
-      return res.status(401).json({ error: "Unauthorized access. Invalid admin password." });
-    }
 
     let visitsList: any[] = [];
     if (db) {
@@ -437,14 +482,8 @@ app.get("/api/dashboard/analytics", async (req, res) => {
 });
 
 // GET /api/dashboard/submissions - Get all submissions (password-secured)
-app.get("/api/dashboard/submissions", async (req, res) => {
+app.get("/api/dashboard/submissions", requireAdminAuth, async (req, res) => {
   try {
-    const password = req.headers["x-admin-password"] || req.query.password;
-    const activePassword = await getAdminPassword();
-    
-    if (password !== activePassword) {
-      return res.status(401).json({ error: "Unauthorized access. Invalid admin password." });
-    }
 
     if (db) {
       try {
@@ -473,15 +512,8 @@ app.get("/api/dashboard/submissions", async (req, res) => {
 });
 
 // DELETE /api/dashboard/submissions/:id - Delete a submission
-app.delete("/api/dashboard/submissions/:id", async (req, res) => {
+app.delete("/api/dashboard/submissions/:id", requireAdminAuth, async (req, res) => {
   try {
-    const password = req.headers["x-admin-password"] || req.query.password;
-    const activePassword = await getAdminPassword();
-
-    if (password !== activePassword) {
-      return res.status(401).json({ error: "Unauthorized." });
-    }
-
     const { id } = req.params;
 
     if (db && !id.startsWith("mem_")) {
@@ -529,6 +561,7 @@ app.post("/api/dashboard/change-password", async (req, res) => {
       }
       
       console.log("[Firestore] Password changed successfully.");
+      cachedAdminPassword = newPassword.trim();
       return res.json({ success: true, message: "Password updated successfully in database." });
     } else {
       return res.status(400).json({ error: "Database not connected. Unable to save new password permanently." });
@@ -543,75 +576,41 @@ app.post("/api/dashboard/change-password", async (req, res) => {
 app.get("/api/dashboard/status", async (req, res) => {
   try {
     const isSetup = await isPasswordConfigured();
-    res.json({ isSetup });
+    // Admin password exists and is configured; always enforce authentication
+    res.json({ isSetup: true });
   } catch (err: any) {
     console.error("[API] Failed to get dashboard status:", err);
-    res.status(500).json({ error: "Failed to read system status." });
+    res.json({ isSetup: true });
   }
 });
 
-// GET & POST /api/auth/verify-admin - Verify if admin token/password is valid
+// GET & POST /api/auth/verify-admin - Strictly verify if admin token/password is valid
 app.all("/api/auth/verify-admin", async (req, res) => {
   try {
-    const password = req.headers["x-admin-password"] || req.body?.password || req.query?.password;
-    if (!password || typeof password !== "string") {
-      return res.status(401).json({ authenticated: false, error: "Password required" });
+    const rawPass = req.headers["x-admin-password"] || req.body?.password || req.query?.password;
+    if (!rawPass || typeof rawPass !== "string" || !rawPass.trim()) {
+      return res.status(401).json({ authenticated: false, error: "Password required." });
     }
     const activePassword = await getAdminPassword();
-    if (password === activePassword) {
+    if (activePassword && rawPass.trim() === activePassword.trim()) {
       return res.json({ authenticated: true });
     }
-    return res.status(401).json({ authenticated: false, error: "Invalid admin password" });
+    return res.status(401).json({ authenticated: false, error: "Invalid administrator password." });
   } catch (err: any) {
     console.error("[API] Failed to verify admin password:", err);
-    res.status(500).json({ authenticated: false, error: "Verification failed", details: getCleanErrorMessage(err) });
+    res.status(401).json({ authenticated: false, error: "Verification failed." });
   }
 });
 
-// POST /api/dashboard/setup-password - Setup initial secure password if not already configured
+// POST /api/dashboard/setup-password - Setup initial secure password (disabled once configured)
 app.post("/api/dashboard/setup-password", async (req, res) => {
-  try {
-    const isAlreadySetup = await isPasswordConfigured();
-    if (isAlreadySetup) {
-      return res.status(400).json({ error: "Password has already been configured. Please use sign in." });
-    }
-
-    const { newPassword } = req.body;
-    if (!newPassword || newPassword.trim().length < 6) {
-      return res.status(400).json({ error: "Password must be at least 6 characters long." });
-    }
-
-    if (db) {
-      try {
-        await setDoc(doc(db, "settings", "admin_config"), {
-          password: newPassword.trim(),
-          updatedAt: new Date().toISOString()
-        }, { merge: true });
-      } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, "settings/admin_config");
-      }
-      console.log("[Firestore] Admin password set successfully during initial first-run setup.");
-      return res.json({ success: true, message: "Initial secure password configured successfully." });
-    } else {
-      process.env.ADMIN_PASSWORD = newPassword.trim();
-      console.log("[Memory] Admin password set in memory fallback.");
-      return res.json({ success: true, message: "Initial secure password configured in memory fallback." });
-    }
-  } catch (err: any) {
-    console.error("[API] Failed to setup initial password:", err);
-    res.status(500).json({ error: "Failed to save initial setup password.", details: getCleanErrorMessage(err) });
-  }
+  // Always reject unauthenticated setup requests to preserve existing password
+  return res.status(403).json({ error: "Administrator password is already configured. Please use sign in." });
 });
 
 // POST /api/dashboard/submissions/:id/reply - Save client response/reply details on this website
-app.post("/api/dashboard/submissions/:id/reply", async (req, res) => {
+app.post("/api/dashboard/submissions/:id/reply", requireAdminAuth, async (req, res) => {
   try {
-    const password = req.headers["x-admin-password"] || req.query.password;
-    const activePassword = await getAdminPassword();
-    
-    if (password !== activePassword) {
-      return res.status(401).json({ error: "Unauthorized." });
-    }
 
     const { id } = req.params;
     const { replyText, replyImage } = req.body;
@@ -659,9 +658,106 @@ app.post("/api/dashboard/submissions/:id/reply", async (req, res) => {
 // Projects API Endpoints
 // -----------------------------------------------------------------------------
 
-// GET /api/projects - Retrieve all dynamic projects
+// GET /api/projects/images - Retrieve all permanently saved project gallery images
+app.get("/api/projects/images", async (req, res) => {
+  try {
+    const images: Record<string, string> = { ...memoryProjectImages };
+    if (db) {
+      try {
+        const snap = await getDocs(collection(db, "project_images"));
+        snap.forEach((d) => {
+          const val = d.data();
+          if (val && val.data) {
+            images[d.id] = val.data;
+          }
+        });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.LIST, "project_images");
+      }
+    }
+    return res.json({ images });
+  } catch (err: any) {
+    console.error("[API] Failed to get project images:", err);
+    res.status(500).json({ error: "Failed to load project gallery images.", details: getCleanErrorMessage(err) });
+  }
+});
+
+// POST /api/projects/replace-image - Permanent replacement of gallery image in database
+app.post("/api/projects/replace-image", requireAdminAuth, async (req, res) => {
+  try {
+
+    const { projectNum, slot, data } = req.body;
+    if (!projectNum || !slot || !data || typeof data !== "string") {
+      return res.status(400).json({ error: "Missing required fields (projectNum, slot, data)." });
+    }
+
+    const docId = `${projectNum}_${slot}`;
+    const updatedAt = new Date().toISOString();
+
+    // 1. Save permanently to Firestore
+    if (db) {
+      try {
+        await setDoc(doc(db, "project_images", docId), {
+          projectNum,
+          slot,
+          data,
+          updatedAt
+        }, { merge: true });
+        console.log(`[Firestore] Successfully saved persistent image for ${docId}`);
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, `project_images/${docId}`);
+      }
+    }
+    memoryProjectImages[docId] = data;
+
+    // 2. Cache on disk if public/uploads directory is writable
+    try {
+      const uploadsDir = path.join(process.cwd(), "public", "uploads");
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+      const match = data.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
+      if (match) {
+        const ext = match[1] === "jpeg" ? "jpg" : match[1];
+        const buffer = Buffer.from(match[2], "base64");
+        fs.writeFileSync(path.join(uploadsDir, `project_${docId}.${ext}`), buffer);
+      }
+    } catch (e) {
+      // non-fatal
+    }
+
+    return res.json({
+      success: true,
+      message: "Image successfully updated and saved permanently in database.",
+      docId,
+      projectNum,
+      slot,
+      data
+    });
+  } catch (err: any) {
+    console.error("[API] Failed to replace project image:", err);
+    res.status(500).json({ error: "Failed to save project image.", details: getCleanErrorMessage(err) });
+  }
+});
+
+// GET /api/projects - Retrieve all dynamic projects with persistent image overrides
 app.get("/api/projects", async (req, res) => {
   try {
+    const images: Record<string, string> = { ...memoryProjectImages };
+    if (db) {
+      try {
+        const snap = await getDocs(collection(db, "project_images"));
+        snap.forEach((d) => {
+          const val = d.data();
+          if (val && val.data) {
+            images[d.id] = val.data;
+          }
+        });
+      } catch (e) {
+        // non-blocking
+      }
+    }
+
     if (db) {
       try {
         const projectsCol = collection(db, "projects");
@@ -673,13 +769,26 @@ app.get("/api/projects", async (req, res) => {
         });
         // Sort by order ascending
         list.sort((a, b) => (a.order || 0) - (b.order || 0));
-        return res.json({ projects: list });
+
+        // Merge any custom persistent images
+        list.forEach(p => {
+          if (images[`${p.num}_col1_1`]) p.col1_1 = images[`${p.num}_col1_1`];
+          if (images[`${p.num}_col1_2`]) p.col1_2 = images[`${p.num}_col1_2`];
+          if (images[`${p.num}_col2`]) p.col2 = images[`${p.num}_col2`];
+        });
+
+        return res.json({ projects: list, images });
       } catch (err) {
         handleFirestoreError(err, OperationType.LIST, "projects");
       }
     } else {
       const sortedMem = [...memoryProjects].sort((a, b) => (a.order || 0) - (b.order || 0));
-      return res.json({ projects: sortedMem });
+      sortedMem.forEach(p => {
+        if (images[`${p.num}_col1_1`]) p.col1_1 = images[`${p.num}_col1_1`];
+        if (images[`${p.num}_col1_2`]) p.col1_2 = images[`${p.num}_col1_2`];
+        if (images[`${p.num}_col2`]) p.col2 = images[`${p.num}_col2`];
+      });
+      return res.json({ projects: sortedMem, images });
     }
   } catch (err: any) {
     console.error("[API] Failed to get projects:", err);
@@ -688,13 +797,8 @@ app.get("/api/projects", async (req, res) => {
 });
 
 // POST /api/projects - Add or update a project (password-secured)
-app.post("/api/projects", async (req, res) => {
+app.post("/api/projects", requireAdminAuth, async (req, res) => {
   try {
-    const password = req.headers["x-admin-password"] || req.query.password;
-    const activePassword = await getAdminPassword();
-    if (password !== activePassword) {
-      return res.status(401).json({ error: "Unauthorized." });
-    }
 
     const { id, num, category, title, col1_1, col1_2, col2, order } = req.body;
     if (!num || !category || !title || !col1_1 || !col1_2 || !col2) {
@@ -736,13 +840,8 @@ app.post("/api/projects", async (req, res) => {
 });
 
 // DELETE /api/projects/:id - Delete a project (password-secured)
-app.delete("/api/projects/:id", async (req, res) => {
+app.delete("/api/projects/:id", requireAdminAuth, async (req, res) => {
   try {
-    const password = req.headers["x-admin-password"] || req.query.password;
-    const activePassword = await getAdminPassword();
-    if (password !== activePassword) {
-      return res.status(401).json({ error: "Unauthorized." });
-    }
 
     const { id } = req.params;
     if (db && !id.startsWith("mem_")) {
@@ -784,14 +883,8 @@ app.get("/api/projects/layout", async (req, res) => {
 });
 
 // POST /api/projects/layout - Save custom layout adjustments (Admin-only, STRICTLY protected on backend)
-app.post("/api/projects/layout", async (req, res) => {
+app.post("/api/projects/layout", requireAdminAuth, async (req, res) => {
   try {
-    const password = req.headers["x-admin-password"] || req.query.password || req.body?.password;
-    const activePassword = await getAdminPassword();
-    
-    if (!password || password !== activePassword) {
-      return res.status(401).json({ error: "Unauthorized access. Administrator permissions are strictly required to modify or save project layouts." });
-    }
 
     const { projectNum, layouts } = req.body;
     if (!projectNum || !layouts) {
@@ -854,13 +947,8 @@ app.get("/api/certificates", async (req, res) => {
 });
 
 // POST /api/certificates - Add or update a certificate (password-secured)
-app.post("/api/certificates", async (req, res) => {
+app.post("/api/certificates", requireAdminAuth, async (req, res) => {
   try {
-    const password = req.headers["x-admin-password"] || req.query.password;
-    const activePassword = await getAdminPassword();
-    if (password !== activePassword) {
-      return res.status(401).json({ error: "Unauthorized." });
-    }
 
     const { id, title, issuer, issueDate, credentialUrl, image, order } = req.body;
     if (!title || !issuer || !issueDate) {
@@ -901,13 +989,8 @@ app.post("/api/certificates", async (req, res) => {
 });
 
 // DELETE /api/certificates/:id - Delete a certificate (password-secured)
-app.delete("/api/certificates/:id", async (req, res) => {
+app.delete("/api/certificates/:id", requireAdminAuth, async (req, res) => {
   try {
-    const password = req.headers["x-admin-password"] || req.query.password;
-    const activePassword = await getAdminPassword();
-    if (password !== activePassword) {
-      return res.status(401).json({ error: "Unauthorized." });
-    }
 
     const { id } = req.params;
     if (db && !id.startsWith("mem_")) {

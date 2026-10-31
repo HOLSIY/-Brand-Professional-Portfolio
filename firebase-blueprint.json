@@ -94,6 +94,19 @@
         "order": { "type": "number" }
       },
       "required": ["title", "issuer", "issueDate"]
+    },
+    "ProjectImage": {
+      "title": "ProjectImage",
+      "description": "Persistent project gallery image",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "projectNum": { "type": "string" },
+        "slot": { "type": "string" },
+        "data": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["projectNum", "slot", "data", "updatedAt"]
     }
   },
   "firestore": {
@@ -108,6 +121,10 @@
     "/projects/{projectId}": {
       "schema": { "$ref": "#/entities/Project" },
       "description": "Collection of dynamic projects"
+    },
+    "/project_images/{imageId}": {
+      "schema": { "$ref": "#/entities/ProjectImage" },
+      "description": "Collection storing persistent replaced project gallery images"
     },
     "/certificates/{certificateId}": {
       "schema": { "$ref": "#/entities/Certificate" },
