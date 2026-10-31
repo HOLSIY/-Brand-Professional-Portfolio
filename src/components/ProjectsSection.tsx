@@ -597,17 +597,17 @@ function ProjectCard({ project, index }: ProjectCardProps) {
       }}
     >
       {/* Top Row */}
-      <div className="flex flex-wrap justify-between items-start gap-4 border-b border-[#D7E2EA]/10 pb-4">
-        <div className="flex items-start gap-3 sm:gap-4 max-w-xl">
+      <div className="flex justify-between items-start gap-3 sm:gap-4 border-b border-[#D7E2EA]/10 pb-4">
+        <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
           {/* Project Number */}
           <span className="font-black text-3xl sm:text-4xl md:text-5xl text-white select-none opacity-45 shrink-0 leading-none pt-0.5">
             {project.num}
           </span>
-          <div className="flex flex-col min-w-0">
+          <div className="flex flex-col min-w-0 flex-1">
             <span className="text-[#D7E2EA]/60 uppercase tracking-widest text-[9px] sm:text-[10px] truncate max-w-full">
               {project.category}
             </span>
-            <h3 className="text-white uppercase font-bold text-base sm:text-lg md:text-xl tracking-wide line-clamp-1 truncate">
+            <h3 className="text-white uppercase font-bold text-base sm:text-lg md:text-xl tracking-wide truncate">
               {project.title}
             </h3>
             {project.description && (
@@ -619,14 +619,14 @@ function ProjectCard({ project, index }: ProjectCardProps) {
         </div>
 
         {/* Action Controls and Live Project Button */}
-        <div className="flex items-center gap-3">
+        <div className="shrink-0 flex items-start gap-2 sm:gap-3">
           {index === 0 ? (
             <div className="flex items-center gap-2 sm:gap-3">
               <a
                 href={project.liveUrl || "https://village-restaurant-delta.vercel.app/"}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center rounded-full border-2 border-[#D7E2EA] text-[#D7E2EA] font-medium uppercase tracking-widest px-4 py-2 sm:px-6 sm:py-2.5 text-xs sm:text-sm hover:bg-[#D7E2EA]/10 transition-colors duration-300"
+                className="inline-flex items-center justify-center rounded-full border-2 border-[#D7E2EA] text-[#D7E2EA] font-medium uppercase tracking-widest px-4 py-2 sm:px-6 sm:py-2.5 text-xs sm:text-sm hover:bg-[#D7E2EA]/10 transition-colors duration-300 shrink-0"
               >
                 Live Project
               </a>
@@ -634,7 +634,7 @@ function ProjectCard({ project, index }: ProjectCardProps) {
                 href={project.githubUrl || "https://github.com/HOLSIY/Village-Restaurant.git"}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-full border-2 border-[#D7E2EA] text-[#D7E2EA] font-medium uppercase tracking-widest px-4 py-2 sm:px-6 sm:py-2.5 text-xs sm:text-sm hover:bg-[#D7E2EA]/10 transition-colors duration-300"
+                className="inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-full border-2 border-[#D7E2EA] text-[#D7E2EA] font-medium uppercase tracking-widest px-4 py-2 sm:px-6 sm:py-2.5 text-xs sm:text-sm hover:bg-[#D7E2EA]/10 transition-colors duration-300 shrink-0"
               >
                 <Github className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                 <span>GitHub</span>
@@ -642,16 +642,16 @@ function ProjectCard({ project, index }: ProjectCardProps) {
             </div>
           ) : index === 1 ? (
             <div className="flex items-start gap-2 sm:gap-3">
-              <div className="flex flex-col items-start sm:items-end">
+              <div className="flex flex-col items-end">
                 <button
                   type="button"
                   onClick={() => setShowComingSoon((prev) => !prev)}
-                  className="inline-flex items-center justify-center rounded-full border-2 border-[#D7E2EA] text-[#D7E2EA] font-medium uppercase tracking-widest px-4 py-2 sm:px-6 sm:py-2.5 text-xs sm:text-sm hover:bg-[#D7E2EA]/10 transition-colors duration-300 cursor-pointer"
+                  className="inline-flex items-center justify-center rounded-full border-2 border-[#D7E2EA] text-[#D7E2EA] font-medium uppercase tracking-widest px-4 py-2 sm:px-6 sm:py-2.5 text-xs sm:text-sm hover:bg-[#D7E2EA]/10 transition-colors duration-300 cursor-pointer shrink-0"
                 >
                   Live Project
                 </button>
                 {showComingSoon && (
-                  <p className="mt-1.5 text-[9px] sm:text-[10px] md:text-[11px] text-[#D7E2EA]/75 tracking-wide font-light whitespace-nowrap overflow-hidden text-ellipsis max-w-[210px] sm:max-w-none text-left sm:text-right">
+                  <p className="mt-1.5 text-[9px] sm:text-[10px] md:text-[11px] text-[#D7E2EA]/75 tracking-wide font-light whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px] sm:max-w-[210px] text-right">
                     Coming soon — live preview in progress.
                   </p>
                 )}
@@ -668,16 +668,16 @@ function ProjectCard({ project, index }: ProjectCardProps) {
             </div>
           ) : index === 2 ? (
             <div className="flex items-start gap-2 sm:gap-3">
-              <div className="flex flex-col items-start sm:items-end">
+              <div className="flex flex-col items-end">
                 <button
                   type="button"
                   onClick={() => setShowComingSoon((prev) => !prev)}
-                  className="inline-flex items-center justify-center rounded-full border-2 border-[#D7E2EA] text-[#D7E2EA] font-medium uppercase tracking-widest px-4 py-2 sm:px-6 sm:py-2.5 text-xs sm:text-sm hover:bg-[#D7E2EA]/10 transition-colors duration-300 cursor-pointer"
+                  className="inline-flex items-center justify-center rounded-full border-2 border-[#D7E2EA] text-[#D7E2EA] font-medium uppercase tracking-widest px-4 py-2 sm:px-6 sm:py-2.5 text-xs sm:text-sm hover:bg-[#D7E2EA]/10 transition-colors duration-300 cursor-pointer shrink-0"
                 >
                   Live Project
                 </button>
                 {showComingSoon && (
-                  <p className="mt-1.5 text-[9px] sm:text-[10px] md:text-[11px] text-[#D7E2EA]/75 tracking-wide font-light whitespace-nowrap overflow-hidden text-ellipsis max-w-[210px] sm:max-w-none text-left sm:text-right">
+                  <p className="mt-1.5 text-[9px] sm:text-[10px] md:text-[11px] text-[#D7E2EA]/75 tracking-wide font-light whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px] sm:max-w-[210px] text-right">
                     Coming soon — platform under development.
                   </p>
                 )}
